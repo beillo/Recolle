@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="gl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recolle — Residuos en A Coruña</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'><rect width='34' height='34' rx='8' fill='%23c3ea51'/><path d='M9 25V9h8.5c3.6 0 6.2 2.2 6.2 5.5 0 2.3-1.2 4-3.2 4.9l4 5.6h-4.4l-3.6-5h-3v5H9zm4.5-8.5h3.5c1.5 0 2.5-.9 2.5-2.2 0-1.3-1-2.2-2.5-2.2h-3.5v4.4z' fill='%231e502b'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;800&display=swap" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --lime:       #c3ea51;
+      --lime-l:     #d5ef94;
+      --lime-xl:    #f0fad4;
+      --dark-green: #1e502b;
+      --ink:        #131419;
+      --white:      #ffffff;
+      --muted:      #7a8a7e;
+      --border:     #e2ead4;
+      --bg:         #f7faf2;
+      --red:        #e03c2d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--ink);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 58px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-wordmark {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--white);
+      letter-spacing: -0.03em;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    .badge-city {
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: var(--ink);
+      background: var(--lime);
+      padding: 4px 12px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .badge-mvp {
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: var(--lime);
+      border: 1px solid rgba(195,234,81,0.35);
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ── LAYOUT ── */
+    .app {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      height: calc(100vh - 58px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--white);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .sidebar-top {
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid #1e2420;
+      background: var(--ink);
+    }
+    .sidebar-top h2 {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--white);
+      letter-spacing: -0.02em;
+      margin-bottom: 3px;
+    }
+    .sidebar-top p {
+      font-size: 0.75rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.45);
+    }
+
+    .instruction {
+      margin: 14px 22px 0;
+      background: rgba(195,234,81,0.1);
+      border: 1px solid rgba(195,234,81,0.3);
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 0.74rem;
+      font-weight: 500;
+      color: var(--lime);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .instruction.hidden { display: none; }
+
+    /* form scroll */
+    .form-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 22px 20px;
+    }
+    .form-scroll::-webkit-scrollbar { width: 3px; }
+    .form-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 0.67rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 7px;
+    }
+
+    .location-chip {
+      background: var(--lime-xl);
+      border: 1px solid var(--lime-l);
+      border-radius: 8px;
+      padding: 9px 13px;
+      font-size: 0.77rem;
+      font-weight: 400;
+      color: var(--dark-green);
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.4;
+    }
+
+    /* categories */
+    .categories {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+    .cat-btn {
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      border-radius: 10px;
+      padding: 11px 8px;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.71rem;
+      font-weight: 500;
+      color: var(--ink);
+      text-align: center;
+      transition: all 0.12s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      line-height: 1.3;
+    }
+    .cat-btn:hover { border-color: var(--lime); background: var(--lime-xl); }
+    .cat-btn.active { border-color: var(--dark-green); background: var(--lime-xl); color: var(--dark-green); }
+    .cat-btn .emoji { font-size: 1.2rem; }
+
+    textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 13px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 300;
+      color: var(--ink);
+      resize: vertical;
+      min-height: 76px;
+      outline: none;
+      transition: border-color 0.12s;
+    }
+    textarea:focus { border-color: var(--dark-green); }
+    textarea::placeholder { color: #c0cfc4; }
+
+    .upload-area {
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .upload-area:hover { border-color: var(--lime); background: var(--lime-xl); }
+    .upload-area.has-photo { border-style: solid; border-color: var(--dark-green); }
+    .upload-area input { display: none; }
+    .upload-area .up-icon { font-size: 1.4rem; }
+    .upload-area p { font-size: 0.73rem; font-weight: 300; color: var(--muted); margin-top: 3px; }
+    #photo-preview { max-width: 100%; border-radius: 6px; margin-top: 10px; display: none; }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--lime);
+      color: var(--ink);
+      border: none;
+      border-radius: 10px;
+      padding: 13px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 0.83rem;
+      cursor: pointer;
+      transition: all 0.12s;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-submit:hover {
+      background: #b0d940;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(195,234,81,0.35);
+    }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* success */
+    .success-msg {
+      display: none;
+      background: var(--lime-xl);
+      border: 1px solid var(--lime-l);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .success-msg .big { font-size: 2.2rem; margin-bottom: 10px; }
+    .success-msg h3 { font-size: 1rem; font-weight: 800; color: var(--dark-green); margin-bottom: 5px; }
+    .success-msg p { font-size: 0.77rem; font-weight: 300; color: var(--muted); }
+    .btn-new {
+      margin-top: 14px;
+      background: var(--dark-green);
+      color: var(--lime);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      font-size: 0.77rem;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .btn-new:hover { background: var(--ink); }
+
+    /* reports */
+    .reports-section {
+      border-top: 1px solid var(--border);
+      padding: 14px 22px 8px;
+      background: var(--white);
+    }
+    .reports-section h3 {
+      font-size: 0.67rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .count-pill {
+      background: var(--lime);
+      color: var(--ink);
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .reports-list { padding-bottom: 14px; }
+    .report-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .report-item:last-child { border-bottom: none; }
+    .report-item:hover {
+      background: var(--lime-xl);
+      padding-left: 8px;
+      margin: 0 -8px;
+      padding-right: 8px;
+      border-radius: 6px;
+      border-bottom-color: transparent;
+    }
+    .r-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50% 50% 50% 0;
+      background: var(--dark-green);
+      transform: rotate(-45deg);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+    .r-dot span { transform: rotate(45deg); font-size: 0.8rem; }
+    .r-info { flex: 1; min-width: 0; }
+    .r-cat { font-size: 0.71rem; font-weight: 500; color: var(--dark-green); }
+    .r-addr { font-size: 0.73rem; font-weight: 300; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .r-time { font-size: 0.67rem; color: var(--muted); margin-top: 1px; }
+
+    /* map */
+    .map-wrap { position: relative; height: 100%; }
+    #map { height: 100%; width: 100%; }
+
+    .map-counter {
+      position: absolute;
+      bottom: 20px;
+      right: 16px;
+      z-index: 999;
+      background: var(--ink);
+      color: var(--lime);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.74rem;
+      font-weight: 800;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      letter-spacing: 0.02em;
+    }
+
+    /* markers */
+    .pin-confirmed {
+      width: 20px; height: 20px;
+      background: var(--dark-green);
+      border: 3px solid var(--lime);
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .pin-new {
+      width: 20px; height: 20px;
+      background: var(--red);
+      border: 3px solid white;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      animation: pinpulse 1.4s infinite;
+    }
+    @keyframes pinpulse {
+      0%,100% { box-shadow: 0 2px 10px rgba(224,60,45,0.5); }
+      50%      { box-shadow: 0 2px 24px rgba(224,60,45,0.9); }
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 10px !important;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+    }
+    .popup-inner { font-family: 'Poppins', sans-serif; min-width: 185px; }
+    .popup-cat { font-size: 0.78rem; font-weight: 800; color: var(--dark-green); margin-bottom: 3px; }
+    .popup-addr { font-size: 0.73rem; font-weight: 300; color: #666; }
+    .popup-desc { font-size: 0.73rem; margin-top: 6px; color: var(--ink); }
+    .popup-time { font-size: 0.67rem; color: #aaa; margin-top: 5px; }
+
+    @media (max-width: 768px) {
+      .app { grid-template-columns: 1fr; grid-template-rows: 44vh 1fr; }
+      .map-wrap { grid-row: 1; }
+      .sidebar { grid-row: 2; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="#">
+    <!-- Recolle logo mark: R icon -->
+    <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="34" height="34" rx="8" fill="#c3ea51"/>
+      <path d="M9 25V9h8.5c3.6 0 6.2 2.2 6.2 5.5 0 2.3-1.2 4-3.2 4.9l4 5.6h-4.4l-3.6-5h-3v5H9zm4.5-8.5h3.5c1.5 0 2.5-.9 2.5-2.2 0-1.3-1-2.2-2.5-2.2h-3.5v4.4z" fill="#1e502b"/>
+    </svg>
+    <span class="logo-wordmark">recolle</span>
+  </a>
+  <div class="header-right">
+    <span class="badge-city">A Coruña</span>
+    <span class="badge-mvp">MVP</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <h2>Reportar un problema</h2>
+      <p>Fai clic no mapa para marcar a localización.</p>
+      <div class="instruction" id="instruction">
+        <span>👆</span> Fai clic no mapa para comezar
+      </div>
+    </div>
+
+    <div class="form-scroll" id="form-scroll">
+      <div id="form-area">
+
+        <div class="field" style="margin-top:16px;">
+          <label>📍 Localización</label>
+          <div class="location-chip" id="location-chip">
+            Ningunha localización seleccionada
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Tipo de problema</label>
+          <div class="categories">
+            <button class="cat-btn" data-cat="contentor" onclick="selectCat(this)"><span class="emoji">🗑️</span>Contentor cheo</button>
+            <button class="cat-btn" data-cat="vertido" onclick="selectCat(this)"><span class="emoji">🚯</span>Vertido ilegal</button>
+            <button class="cat-btn" data-cat="punto_negro" onclick="selectCat(this)"><span class="emoji">🏚️</span>Punto negro</button>
+            <button class="cat-btn" data-cat="reciclaxe" onclick="selectCat(this)"><span class="emoji">♻️</span>Reciclaxe</button>
+            <button class="cat-btn" data-cat="limpeza" onclick="selectCat(this)"><span class="emoji">🧹</span>Limpeza viaria</button>
+            <button class="cat-btn" data-cat="outro" onclick="selectCat(this)"><span class="emoji">📋</span>Outro</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Descrición (opcional)</label>
+          <textarea id="description" placeholder="Describe brevemente o problema…"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Foto (opcional)</label>
+          <div class="upload-area" id="upload-area" onclick="document.getElementById('photo-input').click()">
+            <input type="file" id="photo-input" accept="image/*" onchange="handlePhoto(this)" />
+            <div class="up-icon">📷</div>
+            <p>Toca para subir unha foto</p>
+            <img id="photo-preview" src="" alt="" />
+          </div>
+        </div>
+
+        <button class="btn-submit" id="btn-submit" onclick="submitReport()" disabled>
+          Enviar reporte
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="success-msg" id="success-msg">
+        <div class="big">✅</div>
+        <h3>Reporte enviado!</h3>
+        <p>Grazas por contribuír a unha Coruña máis limpa.</p>
+        <button class="btn-new" onclick="resetForm()">+ Novo reporte</button>
+      </div>
+    </div>
+
+    <div class="reports-section">
+      <h3>
+        Últimos reportes
+        <span class="count-pill" id="count">0</span>
+      </h3>
+      <div class="reports-list" id="reports-list">
+        <p style="font-size:.73rem;font-weight:300;color:var(--muted);">Aínda non hai reportes.</p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-counter" id="map-counter">0 reportes</div>
+  </div>
+
+</div>
+
+<script>
+const reports = [];
+const CATS = {
+  contentor:   { label: 'Contentor cheo',  emoji: '🗑️' },
+  vertido:     { label: 'Vertido ilegal',  emoji: '🚯' },
+  punto_negro: { label: 'Punto negro',     emoji: '🏚️' },
+  reciclaxe:   { label: 'Reciclaxe',       emoji: '♻️' },
+  limpeza:     { label: 'Limpeza viaria',  emoji: '🧹' },
+  outro:       { label: 'Outro',           emoji: '📋' },
+};
+
+let selLat = null, selLng = null, selAddr = null, selCat = null, pendingPin = null;
+
+// MAP
+const map = L.map('map').setView([43.3623, -8.4115], 14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+  maxZoom: 19
+}).addTo(map);
+
+map.on('click', async (e) => {
+  selLat = e.latlng.lat;
+  selLng = e.latlng.lng;
+
+  const icon = L.divIcon({ className: 'pin-new', iconSize: [20,20], iconAnchor: [10,20] });
+  if (pendingPin) map.removeLayer(pendingPin);
+  pendingPin = L.marker([selLat, selLng], { icon }).addTo(map);
+
+  document.getElementById('location-chip').textContent = '⏳ Buscando enderezo…';
+  document.getElementById('instruction').classList.add('hidden');
+
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${selLat}&lon=${selLng}&format=json`,
+      { headers: { 'Accept-Language': 'gl,es' } }
+    );
+    const d = await r.json();
+    selAddr = d.address?.road
+      ? `${d.address.road}${d.address.house_number ? ' '+d.address.house_number : ''}, ${d.address.city || d.address.town || 'A Coruña'}`
+      : d.display_name;
+  } catch {
+    selAddr = `${selLat.toFixed(5)}, ${selLng.toFixed(5)}`;
+  }
+
+  document.getElementById('location-chip').innerHTML = `<span>📍</span> ${selAddr}`;
+  updateBtn();
+});
+
+function selectCat(btn) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selCat = btn.dataset.cat;
+  updateBtn();
+}
+
+function updateBtn() {
+  document.getElementById('btn-submit').disabled = !(selLat && selCat);
+}
+
+function handlePhoto(input) {
+  if (!input.files.length) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const p = document.getElementById('photo-preview');
+    p.src = e.target.result;
+    p.style.display = 'block';
+    document.getElementById('upload-area').classList.add('has-photo');
+    document.querySelector('#upload-area p').textContent = input.files[0].name;
+    document.querySelector('#upload-area .up-icon').textContent = '✅';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function submitReport() {
+  const cat = CATS[selCat];
+  const report = {
+    id: Date.now(), lat: selLat, lng: selLng, address: selAddr,
+    cat: selCat, label: cat.label, emoji: cat.emoji,
+    desc: document.getElementById('description').value.trim(),
+    time: new Date(),
+  };
+  reports.unshift(report);
+
+  if (pendingPin) { map.removeLayer(pendingPin); pendingPin = null; }
+  const icon = L.divIcon({ className: 'pin-confirmed', iconSize: [20,20], iconAnchor: [10,20] });
+  const m = L.marker([report.lat, report.lng], { icon }).addTo(map);
+  m.bindPopup(`
+    <div class="popup-inner">
+      <div class="popup-cat">${report.emoji} ${report.label}</div>
+      <div class="popup-addr">${report.address}</div>
+      ${report.desc ? `<div class="popup-desc">${report.desc}</div>` : ''}
+      <div class="popup-time">${fmt(report.time)}</div>
+    </div>
+  `);
+
+  renderList();
+  document.getElementById('form-area').style.display = 'none';
+  document.getElementById('success-msg').style.display = 'block';
+}
+
+function renderList() {
+  const n = reports.length;
+  document.getElementById('count').textContent = n;
+  document.getElementById('map-counter').textContent = `${n} reporte${n !== 1 ? 's' : ''}`;
+  const el = document.getElementById('reports-list');
+  if (!n) {
+    el.innerHTML = `<p style="font-size:.73rem;font-weight:300;color:var(--muted);">Aínda non hai reportes.</p>`;
+    return;
+  }
+  el.innerHTML = reports.slice(0,7).map(r => `
+    <div class="report-item" onclick="map.flyTo([${r.lat},${r.lng}],17)">
+      <div class="r-dot"><span>${r.emoji}</span></div>
+      <div class="r-info">
+        <div class="r-cat">${r.label}</div>
+        <div class="r-addr">${r.address}</div>
+        <div class="r-time">${fmt(r.time)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function fmt(d) {
+  return d.toLocaleString('gl-ES', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' });
+}
+
+function resetForm() {
+  selLat = selLng = selAddr = selCat = null;
+  document.getElementById('location-chip').textContent = 'Ningunha localización seleccionada';
+  document.getElementById('description').value = '';
+  const pp = document.getElementById('photo-preview');
+  pp.src = ''; pp.style.display = 'none';
+  document.getElementById('upload-area').classList.remove('has-photo');
+  document.querySelector('#upload-area p').textContent = 'Toca para subir unha foto';
+  document.querySelector('#upload-area .up-icon').textContent = '📷';
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-submit').disabled = true;
+  document.getElementById('instruction').classList.remove('hidden');
+  document.getElementById('form-area').style.display = 'block';
+  document.getElementById('success-msg').style.display = 'none';
+  document.getElementById('form-scroll').scrollTop = 0;
+}
+
+renderList();
+</script>
+</body>
+</html>
